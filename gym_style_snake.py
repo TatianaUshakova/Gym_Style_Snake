@@ -1,9 +1,9 @@
 import pygame
 import random
 import numpy as np
-import torch
-import torch.nn as nn
-import os
+#import torch
+#import torch.nn as nn
+#import os
 
 width, height = 640, 480  
 blocksize = 20
