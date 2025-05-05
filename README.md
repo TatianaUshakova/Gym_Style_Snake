@@ -15,6 +15,15 @@ A classic Snake game implemented as a Gym environment, ready for use with any RL
 pip install pygame gym numpy
 ```
 
+## Optional: Training Demo
+
+To run the training demo in `gym_style_snake.py` (which uses Stable Baselines3), you'll also need:
+
+```bash
+pip install stable-baselines3
+```
+
+
 ## Usage
 
 ### As a standalone environment
