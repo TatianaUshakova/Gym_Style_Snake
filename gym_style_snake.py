@@ -29,23 +29,38 @@ from gym import spaces
 
 class GymStyleSnake(gym.Env):
     
-    metadata = {"render_modes": ["human"]}
+    metadata = {"render_modes": ["human", "none"]}
     
     #to do = define self.rewards.food_reward=100
     #self.rewards.collision_reward = -20
     
-    def __init__(self, aware_length = 10):
+    def __init__(self, aware_length = 10, disallow_backward = False, render_mode="human", max_iter=10000):
         super().__init__()
+        self.render_mode = render_mode
         pygame.init()
-        self.screen = pygame.display.set_mode((width, height))
+        if self.render_mode == "human":
+            self.screen = pygame.display.set_mode((width, height))
+        else:
+            self.screen = None
         self.clock = pygame.time.Clock()
-        self.max_iter = 10000
-        #self.food = None
         self.aware_length = aware_length
+        self.disallow_backward = disallow_backward
+
+        # Always enforce a time limit, and cap it to 5 minutes at min speed if set too high
+        cap_max_steps_5min = 1500
+        if max_iter is None or max_iter > cap_max_steps_5min:
+            print(f"max_iter set to {max_iter}, capping to {cap_max_steps_5min} steps (~5 minutes at min speed).")
+            self.max_iter = cap_max_steps_5min
+        else:
+            self.max_iter = max_iter
+
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(10+2*self.aware_length,), dtype=np.float32
         )
-        self.action_space = spaces.Discrete(4)
+        if self.disallow_backward:
+            self.action_space = spaces.Discrete(3)  # left, straight, right
+        else:
+            self.action_space = spaces.Discrete(4)  # absolute directions
         self.reset() 
            
     def reset(self, *, seed=None, options=None): #was named gamestart before
@@ -74,8 +89,8 @@ class GymStyleSnake(gym.Env):
     def render(self, mode='human'): #, current_reward=None - removed to match gym #prev was named print_new_screen
         #to do? add mode='rgb_array'
 
-        if mode !='human':
-            raise ValueError("Selected mode haven't been implemented")
+        if self.render_mode != 'human':
+            return
 
         self.screen.fill(white)
         pygame.draw.rect(self.screen, blue, pygame.Rect(0, 0, width, height))
@@ -97,14 +112,14 @@ class GymStyleSnake(gym.Env):
             gameover_text_rect = gameover_text.get_rect(center = (width//2, height//2-30))
             
             font1 = pygame.font.Font(None, 30)
-            newgame_text = font1.render(f"Play again? (y/n):", True, red)
+            newgame_text = font1.render(f"Play again? (y/n):", True, red) #delete it was from human mode version
             newgame_text_rect = newgame_text.get_rect(center = (width//2, height//2+30))
             
             self.screen.blit(gameover_text, gameover_text_rect)
             self.screen.blit(newgame_text, newgame_text_rect)
         
         pygame.display.flip()#update the screen
-    
+
     def _point_to_idx(self, point):
         # Convert Point action to index (right=0, up=1, left=2, down=3)
         if point.x == 1: return 0    # right
@@ -117,6 +132,23 @@ class GymStyleSnake(gym.Env):
         # Convert index to Point action
         actions = [Point(1,0), Point(0,-1), Point(-1,0), Point(0,1)]
         return actions[idx]
+    
+    def _snake_to_game_frame(self, relative_action):
+        """
+        Converts a relative action (0: left, 1: straight, 2: right)
+        to an absolute direction in the game frame.
+        """
+        directions = [Point(1,0), Point(0,-1), Point(-1,0), Point(0,1)]  # right, up, left, down
+        current_idx = self._point_to_idx(self.action)
+        if relative_action == 0:  # left turn
+            new_idx = (current_idx - 1) % 4
+        elif relative_action == 1:  # straight
+            new_idx = current_idx
+        elif relative_action == 2:  # right turn
+            new_idx = (current_idx + 1) % 4
+        else:
+            raise ValueError("Invalid relative action")
+        return directions[new_idx]
 
     def _make_state(self):
         '''create state to be passed to nn consisting of 
@@ -160,17 +192,22 @@ class GymStyleSnake(gym.Env):
         return np.array(state, dtype=np.float32)
 
     def step(self, agents_action):
-        action = self._idx_to_point(agents_action)
+        if self.disallow_backward:
+            # Use relative action and convert to absolute direction
+            action = self._snake_to_game_frame(agents_action)
+        else:
+            # Use absolute direction directly
+            action = self._idx_to_point(agents_action)
         self.action = action #play step read this - to do - change to be passed as arg
         reward = self.__play_step()
         next_state = self._make_state()
         return next_state, reward, self.terminated, self.truncated, {}
         #return next_state, reward, terminated, truncated, info 
 
-    def __play_step(self, render = True): #to do - prob rescale reward?
+    def __play_step(self, render = True): #returns reward #to do - prob rescale reward?
         '''do game step and returns the reward for the step'''
         self.frame_iteration += 1
-        rl_reward = 0#-0.2  # Time penalty
+        rl_reward = 0# -0.01  #-0.2  # Time penalty
         
         # Calculate maximum possible distance on the board
         #max_distance = ((width**2 + height**2)**0.5)
@@ -208,12 +245,12 @@ class GymStyleSnake(gym.Env):
             #print(f"dist.x {self.head.x - self.food.x} dist.y {self.head.y - self.food.y}  ")
             #print(f"reward {distance_change/blocksize } current_distance {current_distance} new_distance {new_distance}")
             self.snake.pop()
-        
+
         if render:
             self.render()#current_reward=rl_reward
         self.clock.tick(self.speed)
         return rl_reward
-
+    
     def close(self):
         pygame.quit()
 
