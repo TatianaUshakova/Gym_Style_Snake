@@ -6,7 +6,7 @@ A classic Snake game implemented as a Gym environment, ready for use with any RL
 
 - Fully Gym-compatible: Use with any Gym-based RL agent.
 - Customizable: Set the length of the "awareness" (how much of the snake's body is included in the state).
-- Optional modifier: Disallow moving backwards for faster learning. -- to be added soon (TO DO)
+- Optional modifier: Disallow moving backwards for faster learning. 
 - Pygame rendering: Visualize the agent's performance.
 
 ## Installation
