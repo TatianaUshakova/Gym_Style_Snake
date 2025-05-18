@@ -31,9 +31,6 @@ class GymStyleSnake(gym.Env):
     
     metadata = {"render_modes": ["human", "none"]}
     
-    #to do = define self.rewards.food_reward=100
-    #self.rewards.collision_reward = -20
-    
     def __init__(self, aware_length = 10, disallow_backward = False, render_mode="human", max_iter=10000):
         super().__init__()
         self.render_mode = render_mode
@@ -58,12 +55,12 @@ class GymStyleSnake(gym.Env):
             low=-np.inf, high=np.inf, shape=(10+2*self.aware_length,), dtype=np.float32
         )
         if self.disallow_backward:
-            self.action_space = spaces.Discrete(3)  # left, straight, right
+            self.action_space = spaces.Discrete(3)  # relative to snake: left, straight, right
         else:
             self.action_space = spaces.Discrete(4)  # absolute directions
         self.reset() 
            
-    def reset(self, *, seed=None, options=None): #was named gamestart before
+    def reset(self, *, seed=None, options=None): 
         #if seed is not None: np.random.seed(seed)
         self.head = Point(width//2, height//2)
         self.snake = [self.head, Point(self.head.x - blocksize, self.head.y), Point(self.head.x - 2*blocksize, self.head.y)]
@@ -86,7 +83,7 @@ class GymStyleSnake(gym.Env):
     def __is_collision(self):
         return (self.head.x < 0 or self.head.x>= width or self.head.y<0 or self.head.y>= height or self.head in self.snake[1:]) #self.snake[0] =self.head by default
         
-    def render(self, mode='human'): #, current_reward=None - removed to match gym #prev was named print_new_screen
+    def render(self, mode='human'): 
         #to do? add mode='rgb_array'
 
         if self.render_mode != 'human':
@@ -99,12 +96,6 @@ class GymStyleSnake(gym.Env):
             pygame.draw.rect(self.screen, black, pygame.Rect(point.x, point.y, blocksize, blocksize))
         pygame.draw.rect(self.screen, yellow, pygame.Rect(self.food.x, self.food.y, blocksize, blocksize))
         
-        # reward in top-left corner
-        #if current_reward is not None:
-        #    font = pygame.font.Font(None, 30)
-        #    reward_text = font.render(f"Reward: {current_reward:.2f}", True, white)
-        #    self.screen.blit(reward_text, (10, 10))
-        
         if self.terminated or self.truncated:
             #print gameover and scores
             font = pygame.font.Font(None, 50)
@@ -112,7 +103,7 @@ class GymStyleSnake(gym.Env):
             gameover_text_rect = gameover_text.get_rect(center = (width//2, height//2-30))
             
             font1 = pygame.font.Font(None, 30)
-            newgame_text = font1.render(f"Play again? (y/n):", True, red) #delete it was from human mode version
+            newgame_text = font1.render(f"Play again? (y/n):", True, red) #not really needed - it was from human mode version
             newgame_text_rect = newgame_text.get_rect(center = (width//2, height//2+30))
             
             self.screen.blit(gameover_text, gameover_text_rect)
@@ -192,7 +183,7 @@ class GymStyleSnake(gym.Env):
         return np.array(state, dtype=np.float32)
 
     def step(self, agents_action):
-        if self.disallow_backward:
+        if self.disallow_backward: #not allowing snake to go backwards that kills snake, -> nn doesnt have to learn it
             # Use relative action and convert to absolute direction
             action = self._snake_to_game_frame(agents_action)
         else:
@@ -201,20 +192,19 @@ class GymStyleSnake(gym.Env):
         self.action = action #play step read this - to do - change to be passed as arg
         reward = self.__play_step()
         next_state = self._make_state()
-        return next_state, reward, self.terminated, self.truncated, {}
-        #return next_state, reward, terminated, truncated, info 
+        return next_state, reward, self.terminated, self.truncated, {} #last one is info 
 
     def __play_step(self, render = True): #returns reward #to do - prob rescale reward?
         '''do game step and returns the reward for the step'''
         self.frame_iteration += 1
-        rl_reward = 0# -0.01  #-0.2  # Time penalty
+        rl_reward = 0# -0.01  -  was a time penalty
+                    #----
+                    #there is an interesting story about this reward: it was added as snake, not knowing its full body position, 
+                    #learned to move in a zigzag way to avoid hitting the body. Time penalty intended to prevent it, enforcing snake
+                    #to move straight. However, when the time penalty was chosen too big, snake at some point learned to go to the 
+                    #nearest wall and hit it, reducing accumulated negative reward
         
-        # Calculate maximum possible distance on the board
-        #max_distance = ((width**2 + height**2)**0.5)
-        
-        # Calculate current distance and normalize it
         current_distance = ((self.head.x - self.food.x)**2 + (self.head.y - self.food.y)**2)**0.5
-        #normalized_distance = current_distance / max_distance
         
         # Then move the snake
         self.head = Point(self.head.x+self.action.x*blocksize, self.head.y+self.action.y*blocksize)
@@ -226,28 +216,27 @@ class GymStyleSnake(gym.Env):
             return rl_reward
 
         if self.__is_collision():
-            rl_reward = -20 #self.rewards.collision_reward
+            rl_reward = -20 
             self.terminated = True
             return rl_reward
          
         elif self.head == self.food:
-            self.score += 1 #do we need game score at all?
+            self.score += 1 
             self.speed = min(15, self.speed + 1)
-            rl_reward = 100#self.rewards.food_reward # 100 This big reward should outweigh accumulated time penalties
+            rl_reward = 100
             self.__place_food()
         
-        else: #nithing happen - continue going
+        else: #nothing happen - continue going
             new_distance = ((self.head.x - self.food.x)**2 + (self.head.y - self.food.y)**2)**0.5
             
             distance_change = current_distance - new_distance
             rl_reward += distance_change/blocksize   # will be at max +-1 so good comparatiely to other distances we have
+                                                    #this reward is present in general to better show to snake to go towards the food
             
-            #print(f"dist.x {self.head.x - self.food.x} dist.y {self.head.y - self.food.y}  ")
-            #print(f"reward {distance_change/blocksize } current_distance {current_distance} new_distance {new_distance}")
             self.snake.pop()
 
         if render:
-            self.render()#current_reward=rl_reward
+            self.render()
         self.clock.tick(self.speed)
         return rl_reward
     
@@ -258,13 +247,9 @@ class GymStyleSnake(gym.Env):
 def main():
     from stable_baselines3 import PPO
 
-    # Create the environment
     env = GymStyleSnake(aware_length=10)
 
-    # Create the PPO agent
     model = PPO("MlpPolicy", env, verbose=1)
-
-    # Train the agent
     model.learn(total_timesteps=10000)
 
     # Wait dor user to react before showing the performance game
@@ -276,7 +261,7 @@ def main():
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, terminated, truncated, info = env.step(action)
         env.render()
-        if terminated or truncated:
+        if terminated or truncated: #=done, restart
             obs, _ = env.reset()
 
     env.close()
