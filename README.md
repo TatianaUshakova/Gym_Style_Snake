@@ -13,6 +13,8 @@ Here the demos of differnt stages of learning of the snake in the consequtive or
   <img src="snakes_learning_gifs/Snake_learned.gif" width="200" />
 </p>
 
+(code for training and parameters of best model would be uploaded soon)
+
 ## Features
 
 - Fully Gym-compatible: Use with any Gym-based RL agent.
