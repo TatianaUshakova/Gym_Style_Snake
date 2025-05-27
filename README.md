@@ -2,6 +2,15 @@
 
 A classic Snake game implemented as a Gym environment, ready for use with any RL library (e.g., Stable Baselines3, RLlib, or your own PPO implementation).
 
+## Demonstration of learning: 
+
+<p float="left">
+  <img src="snakes_learning_gifs/Snake_starts_learning.gif" width="200" />
+  <img src="snakes_learning_gifs/Snake_continues_learning.gif" width="200" />
+  <img src="snakes_learning_gifs/Snake_learning_further.gif" width="200" />
+  <img src="snakes_learning_gifs/Snake_learned.gif" width="200" />
+</p>
+
 ## Features
 
 - Fully Gym-compatible: Use with any Gym-based RL agent.
