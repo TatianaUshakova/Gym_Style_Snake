@@ -70,7 +70,7 @@ model.learn(total_timesteps=10000)
 ## Arguments
 
 - `aware_length` (int): How many body segments to include in the state.
-- `disallow_backwards` (bool): If `True`, the snake cannot move directly backwards (recommended for RL). -- to be added soon
+- `disallow_backwards` (bool): If `True`, the snake cannot move directly backwards (recommended for RL so the learning happens faster).
 
 
 ## Acknowledgements
