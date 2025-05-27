@@ -4,6 +4,8 @@ A classic Snake game implemented as a Gym environment, ready for use with any RL
 
 ## Demonstration of learning: 
 
+Here the demos of differnt stages of learning of the snake in the consequtive order (with some time between)
+
 <p float="left">
   <img src="snakes_learning_gifs/Snake_starts_learning.gif" width="200" />
   <img src="snakes_learning_gifs/Snake_continues_learning.gif" width="200" />
